@@ -1,0 +1,25 @@
+[project]
+name = "media-news-prediction"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "bs4>=0.0.2",
+    "fastapi>=0.122.0",
+    "huggingface-hub[hf-xet]>=0.36.0",
+    "joblib>=1.5.2",
+    "lxml>=6.0.2",
+    "matplotlib>=3.10.7",
+    "nltk>=3.9.2",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "sentence-transformers>=5.1.2",
+    "spacy>=3.8.7",
+    "streamlit>=1.51.0",
+    "uvicorn>=0.38.0",
+    "wordcloud>=1.9.4",
+    "xgboost>=3.1.2",
+]
