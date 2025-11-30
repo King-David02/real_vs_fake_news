@@ -68,7 +68,7 @@ with st.expander("Try these example statements"):
             st.session_state.statement = "Stock market closes with modest gains amid economic uncertainty"
             st.rerun()
 
-API_URL = os.getenv("API_URL", "http://localhost:8000/predict")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000 /predict")
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
