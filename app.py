@@ -25,87 +25,84 @@
 
 import streamlit as st
 import requests
+import os
 
-# Page configuration
 st.set_page_config(
     page_title="Fake News Detector",
     page_icon="🔍",
     layout="centered"
 )
 
-# Title and description
+if 'statement' not in st.session_state:
+    st.session_state.statement = ""
+
 st.title("Fake News Detector")
 st.markdown("""
 Welcome! This tool helps you identify whether a news statement might be fake or real.
 Simply paste any news headline or statement below and click **Analyze**.
 """)
 
-# Add some spacing
 st.markdown("---")
 
-# User input with a helpful placeholder
 statement = st.text_area(
     "Enter a news statement to check:",
+    value=st.session_state.statement,
     height=150,
     placeholder="Example: Scientists discover cure for all diseases overnight...",
-    help="Paste any news headline, article excerpt, or statement you want to verify"
+    help="Paste any news headline, article excerpt, or statement you want to verify",
+    key="statement_input"
 )
 
-# Add example statements users can try
+st.session_state.statement = statement
+
 with st.expander("Try these example statements"):
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Example 1: Fake News"):
-            statement = "Breaking: Aliens land in New York City, confirm they invented pizza"
+        if st.button("Example 1: Fake News", key="fake_example"):
+            st.session_state.statement = "Breaking: Aliens land in New York City, confirm they invented pizza"
             st.rerun()
     
     with col2:
-        if st.button("Example 2: Real News"):
-            statement = "Stock market closes with modest gains amid economic uncertainty"
+        if st.button("Example 2: Real News", key="real_example"):
+            st.session_state.statement = "Stock market closes with modest gains amid economic uncertainty"
             st.rerun()
 
-# Analyze button with better styling
+API_URL = os.getenv("API_URL", "http://localhost:8000/predict")
+
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     analyze_button = st.button("Analyze Statement", use_container_width=True, type="primary")
 
 if analyze_button:
-    if statement.strip():
-        # Show loading spinner
+    if st.session_state.statement.strip():
         with st.spinner("Analyzing the statement..."):
             try:
-                API_URL = "http://127.0.0.1:8000/predict"
-                
                 response = requests.post(
                     API_URL,
-                    json={"statement": statement},
+                    json={"statement": st.session_state.statement},
                     timeout=30
                 )
                 
                 if response.status_code == 200:
                     result = response.json()
                     
-                    # Display results in a nice format
                     st.markdown("---")
                     st.subheader("Analysis Results")
                     
-                    # Show the result with visual indicators
                     label = result['label']
                     probability = result['probability']
                     
                     if label == 1:
-                        st.error("**This statement is likely FAKE NEWS**")
+                        st.success("**This statement appears to be REAL NEWS**")
                         confidence = probability * 100
                     else:
-                        st.success("**This statement appears to be REAL NEWS**")
+                        st.error("**This statement is likely FAKE NEWS**")
                         confidence = (1 - probability) * 100
                     
-                    # Confidence meter
                     st.metric("Confidence Level", f"{confidence:.1f}%")
                     st.progress(confidence / 100)
                     
-                    # Explanation
                     st.info("""
                     **What does this mean?**
                     - This is a prediction based on machine learning analysis
@@ -113,7 +110,6 @@ if analyze_button:
                     - Always verify important news from multiple trusted sources
                     """)
                     
-                    # Disclaimer
                     st.caption("This tool is for educational purposes. Always fact-check important information from reliable sources.")
                     
                 else:
@@ -128,14 +124,13 @@ if analyze_button:
     else:
         st.warning("Please enter a statement to analyze")
 
-# Footer with instructions
 st.markdown("---")
 st.markdown("""
 ### How to use this tool:
-1. **Paste** or type a news statement in the text box above
+1. Paste or type a news statement in the text box above
 2. Click the **Analyze Statement** button
 3. Review the results and confidence level
-4. Remember to verify important news from multiple trusted sources!
+4. Remember to verify important news from multiple trusted sources
 
 ### About
 This tool uses machine learning to analyze text patterns and predict whether a statement might be fake news.
