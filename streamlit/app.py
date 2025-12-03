@@ -2,6 +2,9 @@ import streamlit as st
 import requests
 import os
 
+import os
+API_URL = os.getenv("API_URL", "http://localhost:8000")
+
 st.set_page_config(
     page_title="Fake News Detector",
     page_icon="🔍",

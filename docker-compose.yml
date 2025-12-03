@@ -1,25 +1,24 @@
-version: "3.9"
-
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: ./api
     ports:
       - "8000:8000"
-    networks:
-      - appnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+    build: ./streamlit
     ports:
       - "8501:8501"
     depends_on:
-      - api
-    networks:
-      - appnet
+      api:
+        condition: service_healthy
+    environment:
+      - API_URL=http://api:8000
 
 networks:
-  appnet:
+  default:
+    driver: bridge

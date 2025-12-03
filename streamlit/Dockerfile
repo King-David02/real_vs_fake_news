@@ -1,14 +1,11 @@
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:0.7.7 /uv /uvx /bin/
-
 WORKDIR /app
 
 COPY streamlit/ .
 
-RUN uv tool install streamlit && uv tool install requests
+RUN pip install --no-cache-dir streamlit requests
 
 EXPOSE 8501
 
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-
