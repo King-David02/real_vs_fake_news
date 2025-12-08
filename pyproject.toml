@@ -5,15 +5,19 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.13.2",
     "bs4>=0.0.2",
+    "duckduckgo-search==6.3.4",
     "fastapi>=0.122.0",
     "huggingface-hub[hf-xet]>=0.36.0",
     "joblib>=1.5.2",
     "lxml>=6.0.2",
     "matplotlib>=3.10.7",
+    "newsapi-python>=0.2.7",
     "nltk>=3.9.2",
     "numpy>=2.3.4",
     "pandas>=2.3.3",
+    "python-dotenv>=1.2.1",
     "scikit-learn>=1.7.2",
     "seaborn>=0.13.2",
     "sentence-transformers>=5.1.2",
