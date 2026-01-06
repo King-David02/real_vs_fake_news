@@ -248,7 +248,7 @@ def predict(news: NewsRequest):
         label = int(classifier.predict(X_final)[0])
         
         # Determine label text and confidence
-        label_text = "FAKE" if label == 1 else "REAL"
+        label_text = "FAKE" if label == 0 else "REAL"
         confidence = "High" if prob > 0.75 or prob < 0.25 else "Medium" if prob > 0.6 or prob < 0.4 else "Low"
         
         # Perform web search

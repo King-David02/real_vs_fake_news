@@ -130,7 +130,7 @@ def main():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.header("📝 Enter News Statement")
+        st.header("Enter News Statement")
         news_statement = st.text_area(
             "Paste or type the news statement you want to verify:",
             height=150,
@@ -146,9 +146,9 @@ def main():
         
         col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
         with col_btn1:
-            analyze_button = st.button("🔍 Analyze News", type="primary", use_container_width=True)
+            analyze_button = st.button("Analyze News", type="primary", use_container_width=True)
         with col_btn2:
-            clear_button = st.button("🗑️ Clear", use_container_width=True)
+            clear_button = st.button("Clear", use_container_width=True)
     
     with col2:
         st.header("💡 Example Statements")
@@ -170,25 +170,25 @@ def main():
     
     # Analysis
     if analyze_button and news_statement:
-        with st.spinner("🔄 Analyzing statement and searching the web..."):
+        with st.spinner("Analyzing statement and searching the web..."):
             result, error = check_news(
                 news_statement, 
                 custom_search if custom_search else None
             )
             
             if error:
-                st.error(f"❌ {error}")
+                st.error(f"{error}")
             elif result:
-                st.success("✅ Analysis Complete!")
+                st.success("Analysis Complete!")
                 
                 # Display results
-                st.header("📊 Analysis Results")
+                st.header("Analysis Results")
                 
                 # Create two columns for model results and AI analysis
                 col_left, col_right = st.columns(2)
                 
                 with col_left:
-                    st.subheader("🤖 ML Model Classification")
+                    st.subheader("ML Model Classification")
                     
                     # Prediction metrics
                     col_pred1, col_pred2 = st.columns(2)
@@ -227,7 +227,7 @@ def main():
                     """)
                 
                 with col_right:
-                    st.subheader("🔍 AI Web Search Verification")
+                    st.subheader("AI Web Search Verification")
                     
                     # AI Analysis
                     if result.get('analysis'):
@@ -250,7 +250,7 @@ def main():
                 
                 st.markdown("---")
                 # Search Results Section
-                st.header("🔗 Web Sources & Evidence")
+                st.header("Web Sources & Evidence")
                 
                 if result.get('search_results'):
                     st.write(f"**Found {len(result['search_results'])} relevant sources from the web:**")
@@ -265,14 +265,14 @@ def main():
                                 </div>
                             """, unsafe_allow_html=True)
                 else:
-                    st.warning("⚠️ No web search results available for cross-verification.")
+                    st.warning("No web search results available for cross-verification.")
                 # Comparison Summary
                 st.header("📋 Final Assessment")
                 
                 col_summary1, col_summary2 = st.columns(2)
                 
                 with col_summary1:
-                    st.markdown("### 🤖 Machine Learning Model")
+                    st.markdown("### Machine Learning Model")
                     st.markdown(f"""
                     - **Verdict:** {result['label_text']}
                     - **Confidence:** {result['probability'] * 100:.1f}%
@@ -296,7 +296,7 @@ def main():
                 
                 # Overall recommendation
                 st.info("""
-                **💡 Recommendation:** 
+                **Recommendation:** 
                 - Use both the ML model prediction AND the AI web verification together
                 - Check the provided sources to form your own opinion
                 - Be especially cautious if both methods indicate "FAKE"
@@ -326,16 +326,18 @@ def main():
                 )
     
     elif analyze_button:
-        st.warning("⚠️ Please enter a news statement to analyze.")
+        st.warning("Please enter a news statement to analyze.")
     
     # Footer
     st.markdown("---")
     st.markdown("""
         <div style='text-align: center; color: #666;'>
-            <p>Made with ❤️ using Streamlit, FastAPI, and Mistral AI</p>
             <p><small>Disclaimer: This tool provides AI-assisted analysis. Always verify important claims through multiple reliable sources.</small></p>
         </div>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
+
+
+
