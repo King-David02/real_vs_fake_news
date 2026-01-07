@@ -119,6 +119,8 @@ def perform_web_search(statement: str, search_query: Optional[str] = None):
         # Use custom search query or create one from statement
         query = search_query or f"fact check: {statement}"
         
+        logger.info(f"Performing web search for: {query}")
+        
         # Get toolkit context
         context = llm_client.get_toolkit_context(
             toolkit_id=toolkit_id,
@@ -139,7 +141,8 @@ def perform_web_search(statement: str, search_query: Optional[str] = None):
         tool_calls = plan_response.choices[0].message.tool_calls
         
         if not tool_calls:
-            return [], "No search results available."
+            logger.warning("No tool calls generated")
+            return [], "No search results available.", []
         
         # Execute tool calls
         results = llm_client.call_tool(
@@ -149,6 +152,44 @@ def perform_web_search(statement: str, search_query: Optional[str] = None):
             user_prompt=query,
             auth_token=auth_token
         )
+        
+        logger.info(f"Got {len(results)} tool results")
+        
+        # Parse search results FIRST (before AI analysis)
+        search_results = []
+        for result in results:
+            import json
+            try:
+                content = json.loads(result["content"])
+                logger.info(f"Result content keys: {content.keys() if isinstance(content, dict) else 'not a dict'}")
+                
+                # Check for different possible keys
+                organic_results = None
+                if "organic" in content:
+                    organic_results = content["organic"]
+                elif "organic_results" in content:
+                    organic_results = content["organic_results"]
+                elif "results" in content:
+                    organic_results = content["results"]
+                
+                if organic_results:
+                    for idx, item in enumerate(organic_results[:10], 1):  # Get top 10
+                        search_results.append(SearchResult(
+                            title=item.get("title", ""),
+                            link=item.get("link", ""),
+                            snippet=item.get("snippet", ""),
+                            position=idx
+                        ))
+                    logger.info(f"Parsed {len(search_results)} search results from this result")
+                else:
+                    logger.warning(f"No organic results found in content. Available keys: {list(content.keys()) if isinstance(content, dict) else 'N/A'}")
+                    
+            except Exception as parse_error:
+                logger.warning(f"Error parsing search result: {parse_error}")
+                logger.warning(f"Result content: {result.get('content', 'N/A')[:200]}")
+                continue
+        
+        logger.info(f"Total parsed search results: {len(search_results)}")
         
         # Append assistant message with tool calls
         conversation_history.append({
@@ -179,38 +220,22 @@ def perform_web_search(statement: str, search_query: Optional[str] = None):
         analysis = extract_text_from_response(final_response.choices[0].message.content)
         
         # Clean up any reference citations from the analysis
-        import re
         analysis = re.sub(r'reference_ids=\[[^\]]*\]\s*type=[\'"]reference[\'"]', '', analysis)
         analysis = re.sub(r'\s+', ' ', analysis).strip()
         
-        # Parse search results
-        search_results = []
-        for result in results:
-            import json
-            try:
-                content = json.loads(result["content"])
-                if "organic" in content:
-                    for idx, item in enumerate(content["organic"][:10], 1):  # Get top 10
-                        search_results.append(SearchResult(
-                            title=item.get("title", ""),
-                            link=item.get("link", ""),
-                            snippet=item.get("snippet", ""),
-                            position=idx
-                        ))
-            except Exception as parse_error:
-                logger.warning(f"Error parsing search result: {parse_error}")
-                continue
+        logger.info(f"Analysis generated: {len(analysis)} characters")
         
         # Extract mentioned sources from analysis and match with URLs
         mentioned_sources = []
         if search_results and analysis:
             # Find all [SOURCE: ...] mentions in the analysis
-            import re
             source_mentions = re.findall(r'\[SOURCE:\s*([^\]]+)\]', analysis)
+            logger.info(f"Found {len(source_mentions)} source mentions in analysis")
             
             for mention in source_mentions:
                 mention_lower = mention.lower().strip()
                 # Try to match with actual search results
+                matched = False
                 for result in search_results:
                     title_lower = result.title.lower()
                     # Check if the mention matches the title (fuzzy match)
@@ -221,16 +246,24 @@ def perform_web_search(statement: str, search_query: Optional[str] = None):
                                 url=result.link,
                                 relevance=f"Mentioned as: {mention}"
                             ))
+                            matched = True
                         break
+                
+                if not matched:
+                    logger.warning(f"Could not match source mention: {mention}")
+            
+            logger.info(f"Matched {len(mentioned_sources)} sources")
             
             # Clean up the [SOURCE: ...] tags from analysis for display
             analysis = re.sub(r'\[SOURCE:\s*([^\]]+)\]', r'"\1"', analysis)
         
+        logger.info(f"Returning {len(search_results)} search results and {len(mentioned_sources)} mentioned sources")
         return search_results, analysis, mentioned_sources
         
     except Exception as e:
-        logger.error(f"Error in web search: {e}")
-        return [], f"Search error: {str(e)}"
+        logger.error(f"Error in web search: {e}", exc_info=True)
+        # FIXED: Return 3 values consistently
+        return [], f"Search error: {str(e)}", []
 
 @app.get("/")
 def welcome_page():
@@ -251,8 +284,17 @@ def predict(news: NewsRequest):
         label_text = "FAKE" if label == 0 else "REAL"
         confidence = "High" if prob > 0.75 or prob < 0.25 else "Medium" if prob > 0.6 or prob < 0.4 else "Low"
         
-        # Perform web search
-        search_results, analysis, mentioned_sources = perform_web_search(raw_text, news.search_query)
+        logger.info(f"Prediction: {label_text} (prob: {prob:.2f})")
+        
+        # Perform web search with proper error handling
+        try:
+            search_results, analysis, mentioned_sources = perform_web_search(raw_text, news.search_query)
+            logger.info(f"Search complete: {len(search_results)} results, {len(mentioned_sources)} mentioned")
+        except Exception as search_error:
+            logger.error(f"Web search failed: {search_error}", exc_info=True)
+            search_results = []
+            analysis = "Web search unavailable"
+            mentioned_sources = []
         
         return PredictionResponse(
             statement=raw_text,
@@ -266,7 +308,7 @@ def predict(news: NewsRequest):
         )
     
     except Exception as e:
-        logger.error(f"Error in prediction: {e}")
+        logger.error(f"Error in prediction: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/search-only")
@@ -281,7 +323,7 @@ def search_only(news: NewsRequest):
             "mentioned_sources": mentioned_sources
         }
     except Exception as e:
-        logger.error(f"Error in search: {e}")
+        logger.error(f"Error in search: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

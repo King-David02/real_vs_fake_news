@@ -49,10 +49,27 @@ st.markdown("""
     }
     .search-result {
         background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 5px;
-        margin: 0.5rem 0;
+        padding: 1.2rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
         border-left: 4px solid #1f77b4;
+    }
+    .search-result h4 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        color: #1f77b4;
+    }
+    .search-result p {
+        margin-bottom: 0.8rem;
+        line-height: 1.6;
+    }
+    .search-result a {
+        color: #1f77b4;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .search-result a:hover {
+        text-decoration: underline;
     }
     .stTextArea textarea {
         font-size: 1.1rem;
@@ -127,42 +144,25 @@ def main():
             api_status.error("❌ API Offline")
     
     # Main content
-    col1, col2 = st.columns([2, 1])
+    st.header("Enter News Statement")
+    news_statement = st.text_area(
+        "Paste or type the news statement you want to verify:",
+        height=150,
+        placeholder="Example: 'Scientists discover cure for cancer in 2024'"
+    )
     
-    with col1:
-        st.header("Enter News Statement")
-        news_statement = st.text_area(
-            "Paste or type the news statement you want to verify:",
-            height=150,
-            placeholder="Example: 'Scientists discover cure for cancer in 2024'"
+    # Advanced options
+    with st.expander("🔧 Advanced Options"):
+        custom_search = st.text_input(
+            "Custom search query (optional):",
+            placeholder="Leave empty to auto-generate"
         )
-        
-        # Advanced options
-        with st.expander("🔧 Advanced Options"):
-            custom_search = st.text_input(
-                "Custom search query (optional):",
-                placeholder="Leave empty to auto-generate"
-            )
-        
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
-        with col_btn1:
-            analyze_button = st.button("Analyze News", type="primary", use_container_width=True)
-        with col_btn2:
-            clear_button = st.button("Clear", use_container_width=True)
     
-    with col2:
-        st.header("💡 Example Statements")
-        examples = [
-            "NASA announces discovery of alien life on Mars",
-            "COVID-19 vaccines contain microchips for tracking",
-            "Biden wins 2024 presidential election",
-            "New study shows coffee reduces cancer risk"
-        ]
-        
-        selected_example = st.selectbox("Try an example:", [""] + examples)
-        if selected_example:
-            news_statement = selected_example
-            st.rerun()
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+    with col_btn1:
+        analyze_button = st.button("Analyze News", type="primary", use_container_width=True)
+    with col_btn2:
+        clear_button = st.button("Clear", use_container_width=True)
     
     # Clear functionality
     if clear_button:
@@ -232,7 +232,17 @@ def main():
                     # AI Analysis
                     if result.get('analysis'):
                         st.markdown("**AI Analysis based on web sources:**")
-                        st.success(result['analysis'])
+                        # Format the analysis text with proper line breaks
+                        analysis_text = result['analysis']
+                        # Replace numbered points with line breaks for better formatting
+                        import re
+                        # Add line breaks before numbered points
+                        analysis_text = re.sub(r'(\d+\.)', r'\n\n\1', analysis_text)
+                        # Add line breaks before bullet points if any
+                        analysis_text = re.sub(r'(-\s)', r'\n\1', analysis_text)
+                        # Clean up multiple newlines
+                        analysis_text = re.sub(r'\n{3,}', '\n\n', analysis_text)
+                        st.markdown(analysis_text)
                     else:
                         st.warning("No AI analysis available")
                     
@@ -249,23 +259,29 @@ def main():
                         st.warning("No web sources found for verification")
                 
                 st.markdown("---")
-                # Search Results Section
+                
+                # Search Results Section - FIXED DISPLAY
                 st.header("Web Sources & Evidence")
                 
                 if result.get('search_results'):
                     st.write(f"**Found {len(result['search_results'])} relevant sources from the web:**")
+                    st.write("")  # Add spacing
                     
+                    # Display each source in a separate container with proper spacing
                     for idx, source in enumerate(result['search_results'], 1):
-                        with st.container():
-                            st.markdown(f"""
-                                <div class="search-result">
-                                    <h4>{idx}. {source['title']}</h4>
-                                    <p>{source['snippet']}</p>
-                                    <a href="{source['link']}" target="_blank">🔗 Read full article</a>
-                                </div>
-                            """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class="search-result">
+                            <h4>{idx}. {source['title']}</h4>
+                            <p>{source['snippet']}</p>
+                            <a href="{source['link']}" target="_blank">🔗 Read full article</a>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
                 else:
                     st.warning("No web search results available for cross-verification.")
+                
+                st.markdown("---")
+                
                 # Comparison Summary
                 st.header("📋 Final Assessment")
                 
@@ -338,6 +354,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
