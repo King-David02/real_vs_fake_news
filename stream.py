@@ -234,8 +234,12 @@ def main():
                         st.markdown("**AI Analysis based on web sources:**")
                         # Format the analysis text with proper line breaks
                         analysis_text = result['analysis']
-                        # Replace numbered points with line breaks for better formatting
+                        
                         import re
+                        # Count sources mentioned in the analysis (e.g., [SOURCE: ...])
+                        source_mentions = re.findall(r'\[SOURCE:([^\]]+)\]', analysis_text)
+                        num_sources_in_analysis = len(source_mentions)
+                        
                         # Add line breaks before numbered points
                         analysis_text = re.sub(r'(\d+\.)', r'\n\n\1', analysis_text)
                         # Add line breaks before bullet points if any
@@ -243,44 +247,25 @@ def main():
                         # Clean up multiple newlines
                         analysis_text = re.sub(r'\n{3,}', '\n\n', analysis_text)
                         st.markdown(analysis_text)
+                        
+                        # Show source count after analysis
+                        if num_sources_in_analysis > 0:
+                            st.success(f"✅ {num_sources_in_analysis} sources referenced in analysis")
                     else:
                         st.warning("No AI analysis available")
                     
-                    # Source count
-                    if result.get('search_results'):
-                        st.metric("Sources Found", len(result['search_results']))
-                        st.info("""
-                        **How AI verification works:**
-                        - Searches the web for related information
-                        - Cross-references multiple credible sources
-                        - Provides context and fact-checking insights
-                        """)
-                    else:
-                        st.warning("No web sources found for verification")
+                    st.info("""
+                    **How AI verification works:**
+                    - Searches the web for related information
+                    - Cross-references multiple credible sources
+                    - Provides context and fact-checking insights
+                    """)
                 
                 st.markdown("---")
                 
-                # Search Results Section - FIXED DISPLAY
-                st.header("Web Sources & Evidence")
-                
-                if result.get('search_results'):
-                    st.write(f"**Found {len(result['search_results'])} relevant sources from the web:**")
-                    st.write("")  # Add spacing
-                    
-                    # Display each source in a separate container with proper spacing
-                    for idx, source in enumerate(result['search_results'], 1):
-                        st.markdown(f"""
-                        <div class="search-result">
-                            <h4>{idx}. {source['title']}</h4>
-                            <p>{source['snippet']}</p>
-                            <a href="{source['link']}" target="_blank">🔗 Read full article</a>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                else:
-                    st.warning("No web search results available for cross-verification.")
-                
-                st.markdown("---")
+                # WEB SOURCES SECTION - REMOVED FROM UI
+                # The search_results are still available in the result object
+                # and can be used in the export functionality below
                 
                 # Comparison Summary
                 st.header("📋 Final Assessment")
@@ -297,9 +282,17 @@ def main():
                 
                 with col_summary2:
                     st.markdown("### 🔍 AI Web Verification")
-                    if result.get('search_results'):
+                    
+                    # Count sources from analysis
+                    import re
+                    num_sources = 0
+                    if result.get('analysis'):
+                        source_mentions = re.findall(r'\[SOURCE:([^\]]+)\]', result['analysis'])
+                        num_sources = len(source_mentions)
+                    
+                    if num_sources > 0:
                         st.markdown(f"""
-                        - **Sources Checked:** {len(result['search_results'])}
+                        - **Sources Checked:** {num_sources}
                         - **Analysis:** Available
                         - **Cross-Referenced:** Yes
                         """)
@@ -314,13 +307,15 @@ def main():
                 st.info("""
                 **Recommendation:** 
                 - Use both the ML model prediction AND the AI web verification together
-                - Check the provided sources to form your own opinion
+                - Consider the confidence scores and analysis provided
                 - Be especially cautious if both methods indicate "FAKE"
-                - Consider the confidence scores and source quality
+                - Cross-check with multiple reliable sources for critical decisions
                 """)
                 
                 st.markdown("---")
                 st.header("💾 Export Results")
+                
+                # Export data still includes search results for reference
                 export_data = {
                     "timestamp": datetime.now().isoformat(),
                     "statement": news_statement,
