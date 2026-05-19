@@ -52,24 +52,50 @@ def detect_language(text: str) -> tuple[str, str]:
     except Exception:
         return "en", "English"
 
-def translate_text(text: str, target_lang: str = "en", source_lang: str = None) -> str:
+def translate_text(
+    text: str,
+    target_lang: str = "en",
+    source_lang: str = None
+) -> str:
+
     try:
         src = LANGUAGE_NAMES.get(source_lang, source_lang)
         tgt = LANGUAGE_NAMES.get(target_lang, target_lang)
-        resp = openai_client.chat.completions.create(
+
+        response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Translate the following text from {src} to {tgt}. "
-                    "Only provide the translation, no explanations:\n\n" + text
-                ),
-            }],
-            max_tokens=1000,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional translator.\n"
+                        "Translate EVERYTHING completely.\n"
+                        "Do NOT leave any words, phrases, idioms, names, or proverbs "
+                        "in the original language.\n"
+                        "Return ONLY the fully translated text in English.\n"
+                        "No explanations.\n"
+                        "No notes.\n"
+                        "No quotation marks."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Translate this text from {src} to {tgt}:\n\n{text}"
+                    )
+                }
+            ],
+            temperature=0,
+            max_tokens=2000,
         )
-        return resp.choices[0].message.content.strip()
+
+        translated = response.choices[0].message.content.strip()
+
+        return translated
+
     except Exception as e:
         logger.error(f"Translation failed: {e}")
+
         return text
 
 def clean_text(text: str) -> str:
@@ -109,14 +135,11 @@ def perform_web_search(
                 f'Fact-check this news statement: "{english_text}"\n\n'
                 f"Search query to use: {query}\n\n"
                 "IMPORTANT:\n"
-                "- Search ONLY using English.\n"
-                "- Return analysis ONLY in English.\n"
-                "- Use reliable English news sources.\n\n"
-                "Provide:\n"
-                "1. A numbered analysis of whether the statement is TRUE or FALSE.\n"
-                "2. For each point, cite the source using this exact format:\n"
-                "[SOURCE: title | url]\n"
-                "3. Be concise and factual."
+                "- The input has already been translated to English.\n"
+                "- NEVER use Yoruba, Hausa, or Igbo in your response.\n"
+                "- Return ALL analysis strictly in English.\n"
+                "- If the statement contains proverbs or local expressions, explain them in English.\n"
+                "- Search ONLY English-language sources.\n"
             ),
         )
 
