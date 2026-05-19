@@ -304,14 +304,14 @@ def main():
             st.subheader("🤖 ML Model Classification")
             m1, m2 = st.columns(2)
             m1.metric("Verdict", result["label_text"])
-            m2.metric("Probability (Fake)", f"{result['probability'] * 100:.1f}%")
+            m2.metric("Probability", f"{result['probability'] * 100:.1f}%")
 
             if result["label_text"] == "FAKE":
                 st.markdown('<div class="fake-label">⚠️ LIKELY FAKE</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div class="real-label">✓ LIKELY REAL</div>', unsafe_allow_html=True)
 
-            st.write("**Fake News Probability:**")
+            st.write("**News Probability:**")
             st.progress(result["probability"])
             st.metric("Model Reliability", result["confidence"])
 
