@@ -44,7 +44,8 @@ fake-news-detector/
 │       └── final_data/
 │           └── data.csv            # Training dataset (statement, label)
 │
-├── requirements.txt
+├── pyproject.toml                  # uv project config & dependencies
+├── uv.lock                         # uv lockfile (commit this)
 ├── .env                            # Local secrets (never commit)
 ├── .gitignore
 └── README.md
@@ -83,16 +84,17 @@ git clone https://github.com/your-username/fake-news-detector.git
 cd fake-news-detector
 ```
 
-### 2. Create a virtual environment
+### 2. Install uv (if not already installed)
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Linux/Mac
-.venv\Scripts\activate           # Windows
+curl -LsSf https://astral.sh/uv/install.sh | sh   # Linux/Mac
+# or
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
 ```
 
-### 3. Install dependencies
+### 3. Create virtual environment and install dependencies
 ```bash
-pip install -r requirements.txt
+uv venv
+uv pip install -r requirements.txt
 ```
 
 ### 4. Add your API key
@@ -103,13 +105,13 @@ OPENAI_API_KEY=sk-...
 
 ### 5. Train the model (if models/ are not present)
 ```bash
-python src/scripts/train.py
+uv run python src/scripts/train.py
 ```
 This saves `preprocessor.joblib` and `classifier.joblib` into `models/`.
 
 ### 6. Run the app
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 ---
@@ -133,17 +135,30 @@ OPENAI_API_KEY = "sk-..."
 
 ## Requirements
 
+Managed with [uv](https://github.com/astral-sh/uv). Dependencies are declared in `pyproject.toml`:
+
+```toml
+[project]
+name = "fake-news-detector"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit",
+    "openai",
+    "joblib",
+    "scikit-learn",
+    "xgboost",
+    "sentence-transformers",
+    "scipy",
+    "langdetect",
+    "python-dotenv",
+    "nltk",
+]
 ```
-streamlit
-openai
-joblib
-scikit-learn
-xgboost
-sentence-transformers
-scipy
-langdetect
-python-dotenv
-nltk
+
+To add a new package:
+```bash
+uv add <package-name>
 ```
 
 ---
