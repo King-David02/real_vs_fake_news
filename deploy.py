@@ -158,6 +158,7 @@ def analyze_news(statement: str, search_query: Optional[str] = None) -> dict:
     lang_code, lang_name = detect_language(statement)
     was_translated = lang_code != "en"
 
+    # Input translated to English for model + search — analysis always stays in English
     english_text = (
         translate_text(statement, "en", lang_code)
         if was_translated else statement
@@ -165,9 +166,6 @@ def analyze_news(statement: str, search_query: Optional[str] = None) -> dict:
 
     label, label_text, prob, confidence = run_model(english_text)
     search_results, analysis, mentioned_sources = perform_web_search(english_text, search_query)
-
-    if was_translated and analysis:
-        analysis = translate_text(analysis, lang_code, "en")
 
     return {
         "statement":          statement,
