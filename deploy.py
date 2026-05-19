@@ -94,20 +94,28 @@ def run_model(english_text: str) -> tuple[int, str, float, str]:
 
 # Web search + analysis
 def perform_web_search(
-    statement: str, search_query: Optional[str] = None
+    english_text: str,
+    search_query: Optional[str] = None
 ) -> tuple[list, str, list]:
-    query = search_query or f"fact check: {statement}"
+
+    # Always force English search
+    query = search_query or f"fact check in English: {english_text}"
 
     try:
         response = openai_client.responses.create(
             model="gpt-4o-mini",
             tools=[{"type": "web_search_preview"}],
             input=(
-                f"Fact-check this news statement: \"{statement}\"\n\n"
+                f'Fact-check this news statement: "{english_text}"\n\n'
                 f"Search query to use: {query}\n\n"
-                "Search the web and then provide:\n"
-                "1. A numbered analysis of whether the statement is TRUE or FALSE based on what you find.\n"
-                "2. For each point, cite the source using this exact format: [SOURCE: title | url]\n"
+                "IMPORTANT:\n"
+                "- Search ONLY using English.\n"
+                "- Return analysis ONLY in English.\n"
+                "- Use reliable English news sources.\n\n"
+                "Provide:\n"
+                "1. A numbered analysis of whether the statement is TRUE or FALSE.\n"
+                "2. For each point, cite the source using this exact format:\n"
+                "[SOURCE: title | url]\n"
                 "3. Be concise and factual."
             ),
         )
@@ -115,7 +123,7 @@ def perform_web_search(
         analysis = ""
         search_results = []
         mentioned_sources = []
-        seen_urls: set = set()
+        seen_urls = set()
 
         for item in response.output:
             if item.type == "message":
@@ -123,62 +131,119 @@ def perform_web_search(
                     if block.type == "output_text":
                         analysis = block.text
 
-                        # Primary: extract from OpenAI annotations
+                        # Extract sources from annotations
                         if hasattr(block, "annotations") and block.annotations:
                             for i, ann in enumerate(block.annotations, 1):
-                                url   = getattr(ann, "url", None)
+
+                                url = getattr(ann, "url", None)
                                 title = getattr(ann, "title", url or "Source")
+
                                 if url and url not in seen_urls:
                                     seen_urls.add(url)
-                                    search_results.append({"title": title, "link": url, "snippet": "", "position": i})
-                                    mentioned_sources.append({"source_name": title, "url": url, "relevance": ""})
 
-        # Fallback: parse [SOURCE: title | url] written inline by the model
+                                    search_results.append({
+                                        "title": title,
+                                        "link": url,
+                                        "snippet": "",
+                                        "position": i
+                                    })
+
+                                    mentioned_sources.append({
+                                        "source_name": title,
+                                        "url": url,
+                                        "relevance": ""
+                                    })
+
+        # Fallback extraction from [SOURCE: ...]
         if not mentioned_sources:
-            for i, (title, url) in enumerate(
-                re.findall(r"\[SOURCE:\s*([^|\]]+)\|\s*(https?://[^\]]+)\]", analysis), 1
-            ):
-                title, url = title.strip(), url.strip()
-                if url not in seen_urls:
-                    seen_urls.add(url)
-                    search_results.append({"title": title, "link": url, "snippet": "", "position": i})
-                    mentioned_sources.append({"source_name": title, "url": url, "relevance": ""})
 
-        # Strip [SOURCE:...] tags from the displayed analysis
-        analysis_clean = re.sub(r"\[SOURCE:[^\]]+\]", "", analysis).strip()
+            matches = re.findall(
+                r"\[SOURCE:\s*([^|\]]+)\|\s*(https?://[^\]]+)\]",
+                analysis
+            )
+
+            for i, (title, url) in enumerate(matches, 1):
+
+                title = title.strip()
+                url = url.strip()
+
+                if url not in seen_urls:
+
+                    seen_urls.add(url)
+
+                    search_results.append({
+                        "title": title,
+                        "link": url,
+                        "snippet": "",
+                        "position": i
+                    })
+
+                    mentioned_sources.append({
+                        "source_name": title,
+                        "url": url,
+                        "relevance": ""
+                    })
+
+        # Remove SOURCE tags from displayed analysis
+        analysis_clean = re.sub(
+            r"\[SOURCE:[^\]]+\]",
+            "",
+            analysis
+        ).strip()
 
         return search_results, analysis_clean, mentioned_sources
 
     except Exception as e:
         logger.error(f"OpenAI web search error: {e}", exc_info=True)
+
         return [], f"Web search error: {str(e)}", []
 
 # Full pipeline
-def analyze_news(statement: str, search_query: Optional[str] = None) -> dict:
+def analyze_news(
+    statement: str,
+    search_query: Optional[str] = None
+) -> dict:
+
+    # Detect language
     lang_code, lang_name = detect_language(statement)
+
+    # Check if translation is needed
     was_translated = lang_code != "en"
 
-    # Input translated to English for model + search — analysis always stays in English
-    english_text = (
-        translate_text(statement, "en", lang_code)
-        if was_translated else statement
+    # Translate ONLY the input to English
+    if was_translated:
+        english_text = translate_text(
+            statement,
+            target_lang="en",
+            source_lang=lang_code
+        )
+    else:
+        english_text = statement
+
+    # ML prediction
+    label, label_text, prob, confidence = run_model(english_text)
+
+    # Web search ALWAYS in English
+    search_results, analysis, mentioned_sources = perform_web_search(
+        english_text=english_text,
+        search_query=search_query
     )
 
-    label, label_text, prob, confidence = run_model(english_text)
-    search_results, analysis, mentioned_sources = perform_web_search(english_text, search_query)
+    # DO NOT translate analysis back
 
     return {
-        "statement":          statement,
-        "detected_language":  lang_name,
-        "language_code":      lang_code,
-        "was_translated":     was_translated,
-        "label":              label,
-        "label_text":         label_text,
-        "probability":        prob,
-        "confidence":         confidence,
-        "search_results":     search_results,
-        "analysis":           analysis,
-        "mentioned_sources":  mentioned_sources,
+        "statement": statement,
+        "english_text": english_text,
+        "detected_language": lang_name,
+        "language_code": lang_code,
+        "was_translated": was_translated,
+        "label": label,
+        "label_text": label_text,
+        "probability": prob,
+        "confidence": confidence,
+        "search_results": search_results,
+        "analysis": analysis,
+        "mentioned_sources": mentioned_sources,
     }
 
 # UI helpers
